@@ -1,0 +1,9 @@
+[serviceweaver]
+binary = "./bin/templweaver"
+rollout = "5m"
+
+[single]
+listeners.frontend = { address = "localhost:12345" }
+
+[multi]
+listeners.frontend = { address = "localhost:12345" }

@@ -1,0 +1,12 @@
+{
+  "dependencies": {
+    "tailwindcss": "^3.4.1"
+  },
+  "scripts": {
+    "build": "tailwindcss build -o static/css/tailwind.css",
+    "watch": "tailwindcss build -o static/css/tailwind.css --watch"
+  },
+  "devDependencies": {
+    "daisyui": "^4.6.0"
+  }
+}

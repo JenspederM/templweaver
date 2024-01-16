@@ -1,0 +1,26 @@
+package views
+
+import "strconv"
+
+type State struct {
+	Count int
+}
+
+templ Index(s State) {
+	<html>
+		<head>
+			<title>Index</title>
+			<link rel="stylesheet" href="/static/tailwind.css"/>
+			<script src="https://unpkg.com/htmx.org@1.9.10"></script>
+		</head>
+		<body>
+			<div class="absolute inset-0 flex flex-col w-full items-center justify-center">
+				<p>
+					Count: <span id="count">{ strconv.Itoa(s.Count) } </span>
+				</p>
+				<button type="button" class="btn" hx-target="#count" hx-post="/increment" hx-swap="innerHTML">Click me</button>
+				<button type="button" class="btn" hx-target="#count" hx-post="/reset" hx-swap="innerHTML">Reset count</button>
+			</div>
+		</body>
+	</html>
+}
