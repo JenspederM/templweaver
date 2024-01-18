@@ -7,9 +7,10 @@ import (
 	"io/fs"
 	"net/http"
 	"os"
-	"strings"
 
 	"github.com/ServiceWeaver/weaver"
+	"github.com/jenspederm/templweaver/authservice"
+	"github.com/jenspederm/templweaver/frontend/views"
 	"github.com/joho/godotenv"
 )
 
@@ -26,29 +27,17 @@ var (
 	staticFS embed.FS
 )
 
-type platformDetails struct {
-	css      string
-	provider string
-}
-
-func (plat *platformDetails) setPlatformDetails(env string) {
-	if env == "gcp" {
-		plat.provider = "Google Cloud"
-		plat.css = "gcp-platform"
-	} else {
-		plat.provider = "local"
-		plat.css = "local"
-	}
-}
-
 // Server is the application frontend.
 type Server struct {
 	weaver.Implements[weaver.Main]
 
 	handler  http.Handler
-	platform platformDetails
 	hostname string
 
+	// Setup the services we need.
+	authservice weaver.Ref[authservice.AuthService]
+
+	// Setup the listeners we need.
 	frontend weaver.Listener
 }
 
@@ -60,8 +49,6 @@ func Serve(ctx context.Context, s *Server) error {
 	// Set ENV_PLATFORM (default to local if not set; use env var if set;
 	// otherwise detect GCP, which overrides env).
 	s.Logger(ctx).Debug("ENV_PLATFORM", "platform", env)
-	s.platform = platformDetails{}
-	s.platform.setPlatformDetails(strings.ToLower(env))
 	hn, err := os.Hostname()
 	if err != nil {
 		s.Logger(ctx).Debug(`cannot get hostname for frontend: using "unknown"`)
@@ -84,6 +71,7 @@ func Serve(ctx context.Context, s *Server) error {
 		handler := func(w http.ResponseWriter, r *http.Request) {
 			fmt.Printf("allowed: %v\n", allowed)
 			if _, ok := allowed[r.Method]; len(allowed) > 0 && !ok {
+				views.Error(r.Response.StatusCode, fmt.Sprintf("method %q not allowed", r.Method)).Render(r.Context(), w)
 				msg := fmt.Sprintf("method %q not allowed", r.Method)
 				http.Error(w, msg, http.StatusMethodNotAllowed)
 				return
@@ -97,8 +85,8 @@ func Serve(ctx context.Context, s *Server) error {
 	const post = http.MethodPost
 	const head = http.MethodHead
 	r.Handle("/", instrument("home", s.indexHandler, []string{get, head}))
-	r.Handle("/increment", instrument("increment", s.incrementHandler, []string{post}))
-	r.Handle("/reset", instrument("reset", s.resetHandler, []string{post}))
+	r.Handle("/login", instrument("login", s.loginHandler, []string{post}))
+	r.Handle("/page1", instrument("page1", s.page1Handler, []string{get, head}))
 	r.Handle("/ping", instrument("ping", func(w http.ResponseWriter, _ *http.Request) { fmt.Fprint(w, "pong") }, []string{post}))
 	r.Handle("/static/", weaver.InstrumentHandler("static", http.StripPrefix("/static/", http.FileServer(http.FS(staticHTML)))))
 	r.Handle("/robots.txt", instrument("robots", func(w http.ResponseWriter, _ *http.Request) { fmt.Fprint(w, "User-agent: *\nDisallow: /") }, nil))

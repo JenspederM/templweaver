@@ -1,0 +1,8 @@
+package views
+
+import "strconv"
+
+templ Error(statusCode int, msg string) {
+	<h1>An error occurred: { strconv.Itoa(statusCode) }</h1>
+	<p>{ msg }</p>
+}
