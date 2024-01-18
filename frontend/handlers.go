@@ -7,6 +7,9 @@ import (
 	"github.com/jenspederm/templweaver/frontend/views"
 )
 
+type GlobalState struct {
+}
+
 func sessionID(r *http.Request) string {
 	v := r.Context().Value(ctxKeySessionID{})
 	if v != nil {
@@ -16,11 +19,20 @@ func sessionID(r *http.Request) string {
 }
 
 func (s *Server) renderView(title string, view templ.Component, w http.ResponseWriter, r *http.Request) {
+	var routes = map[string]views.Route{
+		"/":      {Titel: "Home", Component: views.Home(sessionID(r))},
+		"/page1": {Titel: "Page 1", Component: views.Page1()},
+		"/page2": {Titel: "Page 2", Component: views.Home(sessionID(r))},
+	}
 	if err := s.authservice.Get().CheckIsLoggedIn(r.Context()); err != nil {
-		views.Index(title, view, false).Render(r.Context(), w)
+		w.WriteHeader(http.StatusUnauthorized)
+		views.Index(routes, title, view, false).Render(r.Context(), w)
 		return
 	}
-	views.Index(title, view, true).Render(r.Context(), w)
+	if r.Header.Get("Hx-Current-Url") == "" || r.Header.Get("Hx-Target") == "root" {
+		views.Index(routes, title, view, true).Render(r.Context(), w)
+	}
+	view.Render(r.Context(), w)
 }
 
 func (s *Server) indexHandler(w http.ResponseWriter, r *http.Request) {

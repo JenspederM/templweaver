@@ -69,7 +69,6 @@ func Serve(ctx context.Context, s *Server) error {
 			allowed[method] = struct{}{}
 		}
 		handler := func(w http.ResponseWriter, r *http.Request) {
-			fmt.Printf("allowed: %v\n", allowed)
 			if _, ok := allowed[r.Method]; len(allowed) > 0 && !ok {
 				views.Error(r.Response.StatusCode, fmt.Sprintf("method %q not allowed", r.Method)).Render(r.Context(), w)
 				msg := fmt.Sprintf("method %q not allowed", r.Method)

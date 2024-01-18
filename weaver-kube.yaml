@@ -1,0 +1,5 @@
+appConfig: weaver.toml
+
+listeners:
+  - name: frontend
+    public: true

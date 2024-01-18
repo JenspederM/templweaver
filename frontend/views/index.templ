@@ -5,7 +5,12 @@ import (
 	"strconv"
 )
 
-templ Index(title string, view templ.Component, isLoggedIn bool) {
+type Route struct {
+	Titel     string
+	Component templ.Component
+}
+
+templ Index(routes map[string]Route, title string, view templ.Component, isLoggedIn bool) {
 	<html>
 		<head>
 			<title>{ title }</title>
@@ -16,7 +21,7 @@ templ Index(title string, view templ.Component, isLoggedIn bool) {
 			<div class="absolute inset-0 flex flex-col w-full bg-base-200 items-center">
 				<div class="flex flex-col flex-grow bg-base-100 sm:w-3/4 md:w-2/3 lg:1/2">
 					if isLoggedIn {
-						@header()
+						@header(routes)
 						<div id="contents" class="flex flex-col flex-grow px-7">
 							@view
 						</div>
@@ -30,36 +35,49 @@ templ Index(title string, view templ.Component, isLoggedIn bool) {
 	</html>
 }
 
-templ contentsSwap(link string, title string) {
-	<button hx-get={ link } hx-push-url={ link } hx-target="#contents" hx-swap="innerHTML">{ title }</button>
+templ contentsSwap(link string, title string, class string) {
+	<button class={ class } hx-get={ link } hx-push-url={ link } hx-target="#contents" hx-swap="innerHTML">{ title }</button>
 }
 
-templ header() {
+templ header(routes map[string]Route) {
 	<div class="navbar shadow-md">
 		<div class="dropdown">
 			<div tabindex="0" role="button" class="btn btn-ghost lg:hidden">
 				<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h8m-8 6h16"></path></svg>
 			</div>
 			<ul tabindex="0" class="menu menu-sm dropdown-content mt-3 z-[1] p-2 shadow bg-base-100 rounded-box w-52">
-				<li>
-					@contentsSwap("/page1", "Page 1")
-				</li>
-				<li>
-					@contentsSwap("/page2", "Page 2")
-				</li>
+				for path, route := range routes {
+					if route.Titel != "" && path != "/" {
+						<li>
+							@contentsSwap(path, route.Titel, "btn btn-ghost btn-sm")
+						</li>
+					}
+				}
 			</ul>
 		</div>
 		<div class="flex-1 space-x-2">
-			<a href="/" class="btn btn-ghost text-xl">Home</a>
+			@contentsSwap("/", routes["/"].Titel, "btn btn-ghost text-xl")
 			<div class="hidden lg:flex space-x-2">
 				<div class="divider divider-horizontal"></div>
-				@contentsSwap("/page1", "Page 1")
+				for path, route := range routes {
+					if route.Titel != "" && path != "/" {
+						@contentsSwap(path, route.Titel, "btn btn-ghost")
+					}
+				}
 			</div>
 		</div>
-		<div class="flex-none">
-			<button class="btn btn-square btn-ghost">
-				<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-5 h-5 stroke-current"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z"></path></svg>
-			</button>
+		<div class="flex-none pr-4">
+			<div class="dropdown dropdown-end">
+				<div tabindex="0" role="button" class="avatar placeholder">
+					<div class="bg-neutral text-neutral-content rounded-full w-10">
+						<span class="text-sm">SY</span>
+					</div>
+				</div>
+				<ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-52">
+					<li><a>Item 1</a></li>
+					<li><a>Item 2</a></li>
+				</ul>
+			</div>
 		</div>
 	</div>
 }
