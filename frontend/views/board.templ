@@ -1,12 +1,10 @@
 package views
 
-import "fmt"
-
 templ InnerBoard(board []string) {
-	for i, row := range board {
+	for _, row := range board {
 		<div class="flex px-1">
-			for j, cell := range row {
-				<div id={ fmt.Sprintf("cell%d_%d", i, j) } class="whitespace-pre font-mono">{ string(cell) }</div>
+			for _, cell := range row {
+				<div class="whitespace-pre font-mono">{ string(cell) }</div>
 			}
 		</div>
 	}

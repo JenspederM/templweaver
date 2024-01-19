@@ -50,8 +50,7 @@ func (s *Server) boardHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodPost {
 		method := r.FormValue("method")
 		fmt.Printf("method: %s\n", method)
-		s.gameservice.Get().Move(r.Context(), method == "previous")
-		err := s.gameservice.Get().DrawBoard(r.Context())
+		err := s.gameservice.Get().Draw(r.Context(), method == "previous")
 		if err != nil {
 			s.renderView("Board", views.Error(500, err.Error()), w, r)
 			return
