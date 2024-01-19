@@ -1,0 +1,28 @@
+package views
+
+import "fmt"
+
+templ InnerBoard(board []string) {
+	for i, row := range board {
+		<div class="flex px-1">
+			for j, cell := range row {
+				<div id={ fmt.Sprintf("cell%d_%d", i, j) } class="whitespace-pre font-mono">{ string(cell) }</div>
+			}
+		</div>
+	}
+}
+
+templ Board(board []string) {
+	<div class="flex flex-col w-full justify-center items-center">
+		<div id="board" class="border">
+			@InnerBoard(board)
+		</div>
+		<div class="flex flex-col py-2 px-4 space-y-1 justify-between">
+			<button class="btn btn-success btn-block" hx-post="/board" hx-params="*" hx-target="#board" hx-swap="innerHTML">Start</button>
+			<div class="flex justify-around">
+				<button class="btn btn-error w-2/5" hx-vals='{"method": "previous"}' hx-post="/board" hx-params="*" hx-target="#board" hx-swap="innerHTML">Prev</button>
+				<button class="btn btn-warning w-2/5" hx-post="/board" hx-params="*" hx-target="#board" hx-swap="innerHTML">Next</button>
+			</div>
+		</div>
+	</div>
+}

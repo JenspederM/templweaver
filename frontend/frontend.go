@@ -11,6 +11,7 @@ import (
 	"github.com/ServiceWeaver/weaver"
 	"github.com/jenspederm/templweaver/authservice"
 	"github.com/jenspederm/templweaver/frontend/views"
+	"github.com/jenspederm/templweaver/gameservice"
 	"github.com/joho/godotenv"
 )
 
@@ -36,6 +37,7 @@ type Server struct {
 
 	// Setup the services we need.
 	authservice weaver.Ref[authservice.AuthService]
+	gameservice weaver.Ref[gameservice.GameService]
 
 	// Setup the listeners we need.
 	frontend weaver.Listener
@@ -86,6 +88,7 @@ func Serve(ctx context.Context, s *Server) error {
 	r.Handle("/", instrument("home", s.indexHandler, []string{get, head}))
 	r.Handle("/login", instrument("login", s.loginHandler, []string{post}))
 	r.Handle("/page1", instrument("page1", s.page1Handler, []string{get, head}))
+	r.Handle("/board", instrument("board", s.boardHandler, []string{get, head, post}))
 	r.Handle("/ping", instrument("ping", func(w http.ResponseWriter, _ *http.Request) { fmt.Fprint(w, "pong") }, []string{post}))
 	r.Handle("/static/", weaver.InstrumentHandler("static", http.StripPrefix("/static/", http.FileServer(http.FS(staticHTML)))))
 	r.Handle("/robots.txt", instrument("robots", func(w http.ResponseWriter, _ *http.Request) { fmt.Fprint(w, "User-agent: *\nDisallow: /") }, nil))
