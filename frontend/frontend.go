@@ -85,7 +85,7 @@ func Serve(ctx context.Context, s *Server) error {
 	const get = http.MethodGet
 	const post = http.MethodPost
 	const head = http.MethodHead
-	r.Handle("/", instrument("home", s.indexHandler, []string{get, head}))
+	r.Handle("/", instrument("home", s.homeHandler, []string{get, head}))
 	r.Handle("/login", instrument("login", s.loginHandler, []string{post}))
 	r.Handle("/page1", instrument("page1", s.page1Handler, []string{get, head}))
 	r.Handle("/board", instrument("board", s.boardHandler, []string{get, head, post}))

@@ -1,26 +1,101 @@
 package views
 
-templ InnerBoard(board []string) {
-	for _, row := range board {
-		<div class="flex px-1">
-			for _, cell := range row {
-				<div class="whitespace-pre font-mono">{ string(cell) }</div>
-			}
+import "github.com/jenspederm/templweaver/gameservice"
+import "github.com/jenspederm/templweaver/frontend/layouts"
+import "strconv"
+
+templ Board(state *gameservice.GameState, board [][]gameservice.Drawable) {
+	@layouts.Base("Board") {
+		<div class="flex flex-col w-full justify-center items-center">
+			@HtmxBoard("board", state, board)
+			@BoardControls()
 		</div>
 	}
 }
 
-templ Board(board []string) {
-	<div class="flex flex-col w-full justify-center items-center">
-		<div id="board" class="border">
-			@InnerBoard(board)
+templ BoardControls() {
+	<head>
+		<script>
+		let intervalId = null;
+		const start = () => {
+			console.log("start");
+			intervalId = setInterval(() => {
+				fetch("/board", {
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json"
+					},
+					body: JSON.stringify({
+						method: "next"
+					})
+				}).then((response) => {
+					return response.text();
+				}).then((data) => {
+					document.getElementById("board").outerHTML = data;
+				});
+			}, 300);
+		};
+		const stop = () => {
+			console.log("stop");
+			clearInterval(intervalId);
+		};
+	</script>
+	</head>
+	<div class="flex justify-around">
+		<button class="btn btn-error w-2/5" onclick="stop()">
+			Stop
+		</button>
+		<button class="btn btn-warning w-2/5" onclick="start()">
+			Start
+		</button>
+	</div>
+	<div class="flex justify-around">
+		<button class="btn btn-error w-2/5" hx-post="/board" hx-target="#board" hx-swap="outerHTML" hx-vals='{"method": "previous"}'>
+			Prev
+		</button>
+		<button class="btn btn-warning w-2/5" hx-post="/board" hx-target="#board" hx-swap="outerHTML">
+			Next
+		</button>
+	</div>
+}
+
+templ HtmxBoard(id string, state *gameservice.GameState, board [][]gameservice.Drawable) {
+	<div class="flex flex-col items-center justify-center" id={ id }>
+		<div class="flex flex-col space-y-2 py-4 px-8 text-center">
+			<h1 class="text-2xl">Round { strconv.Itoa(state.Round) }</h1>
+			<h3 class="text-lg font-bold">{ strconv.Itoa(state.Score) }</h3>
 		</div>
-		<div class="flex flex-col py-2 px-4 space-y-1 justify-between">
-			<button class="btn btn-success btn-block" hx-post="/board" hx-params="*" hx-target="#board" hx-swap="innerHTML">Start</button>
-			<div class="flex justify-around">
-				<button class="btn btn-error w-2/5" hx-vals='{"method": "previous"}' hx-post="/board" hx-params="*" hx-target="#board" hx-swap="innerHTML">Prev</button>
-				<button class="btn btn-warning w-2/5" hx-post="/board" hx-params="*" hx-target="#board" hx-swap="innerHTML">Next</button>
-			</div>
+		<div class="border">
+			for _, row := range board {
+				<div class="flex px-1">
+					for _, cell := range row {
+						<div class="flex items-center justify-center whitespace-pre font-mono h-10 w-10">
+							switch cell.Type {
+								case gameservice.DrawableTree: 
+									// Trees
+									<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="h-8 w-8 fill-current"><path d="M6 7C6 3.68629 8.68629 1 12 1C15.3137 1 18 3.68629 18 7C18 7.26214 17.9831 7.5207 17.9504 7.77457C19.77 8.80413 21 10.7575 21 13C21 16.3137 18.3137 19 15 19H13V22H11V19H8.5C5.46243 19 3 16.5376 3 13.5C3 11.2863 4.30712 9.37966 6.19098 8.50704C6.06635 8.02551 6 7.52039 6 7ZM7.00964 10.3319C5.82176 10.8918 5 12.1008 5 13.5C5 15.433 6.567 17 8.5 17H15C17.2091 17 19 15.2091 19 13C19 11.3056 17.9461 9.85488 16.4544 9.27234L15.6129 8.94372C15.7907 8.30337 16 7.67183 16 7C16 4.79086 14.2091 3 12 3C9.79086 3 8 4.79086 8 7C8 8.30783 8.6266 9.46903 9.60019 10.2005L8.39884 11.7995C7.85767 11.3929 7.38716 10.8963 7.00964 10.3319Z"></path></svg>
+								case gameservice.DrawableStart:
+									// Start
+									<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12C22 17.5228 17.5228 22 12 22ZM12 20C16.4183 20 20 16.4183 20 12C20 7.58172 16.4183 4 12 4C7.58172 4 4 7.58172 4 12C4 16.4183 7.58172 20 12 20ZM10.6219 8.41459L15.5008 11.6672C15.6846 11.7897 15.7343 12.0381 15.6117 12.2219C15.5824 12.2658 15.5447 12.3035 15.5008 12.3328L10.6219 15.5854C10.4381 15.708 10.1897 15.6583 10.0672 15.4745C10.0234 15.4088 10 15.3316 10 15.2526V8.74741C10 8.52649 10.1791 8.34741 10.4 8.34741C10.479 8.34741 10.5562 8.37078 10.6219 8.41459Z"></path></svg>
+								case gameservice.DrawableMonster: 
+									// Monsters
+									<div class="tooltip" data-tip={ cell.Tooltip }>
+										<!-- svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="w-8 h-8 fill-success"><path d="M12 2C16.6944 2 20.5 5.80558 20.5 10.5C20.5 17 15 22.5 12 22.5C9 22.5 3.5 17 3.5 10.5C3.5 5.80558 7.30558 2 12 2ZM17.5 12C15.0147 12 13 14.0147 13 16.5C13 16.6603 13.0084 16.8186 13.0252 16.9752C13.1812 16.9916 13.3396 17 13.5 17C15.9853 17 18 14.9853 18 12.5C18 12.3396 17.9916 12.1812 17.9746 12.0247C17.8186 12.0084 17.6603 12 17.5 12ZM6.5 12C6.33963 12 6.18121 12.0084 6.02475 12.0252C6.00839 12.1812 6 12.3396 6 12.5C6 14.9853 8.01472 17 10.5 17C10.6603 17 10.8186 16.9916 10.9753 16.9746C10.9916 16.8186 11 16.6603 11 16.5C11 14.0147 8.98528 12 6.5 12Z"></path></svg> -->
+										<!-- svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="w-8 h-8 fill-error"><path d="M12 2C16.6944 2 20.5 5.80558 20.5 10.5C20.5 17 15 22.5 12 22.5C9 22.5 3.5 17 3.5 10.5C3.5 5.80558 7.30558 2 12 2ZM17.5 12C15.0147 12 13 14.0147 13 16.5C13 16.6603 13.0084 16.8186 13.0252 16.9752C13.1812 16.9916 13.3396 17 13.5 17C15.9853 17 18 14.9853 18 12.5C18 12.3396 17.9916 12.1812 17.9746 12.0247C17.8186 12.0084 17.6603 12 17.5 12ZM6.5 12C6.33963 12 6.18121 12.0084 6.02475 12.0252C6.00839 12.1812 6 12.3396 6 12.5C6 14.9853 8.01472 17 10.5 17C10.6603 17 10.8186 16.9916 10.9753 16.9746C10.9916 16.8186 11 16.6603 11 16.5C11 14.0147 8.98528 12 6.5 12Z"></path></svg> -->
+										<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class={ cell.Class }><path d="M12 2C16.6944 2 20.5 5.80558 20.5 10.5C20.5 17 15 22.5 12 22.5C9 22.5 3.5 17 3.5 10.5C3.5 5.80558 7.30558 2 12 2ZM17.5 12C15.0147 12 13 14.0147 13 16.5C13 16.6603 13.0084 16.8186 13.0252 16.9752C13.1812 16.9916 13.3396 17 13.5 17C15.9853 17 18 14.9853 18 12.5C18 12.3396 17.9916 12.1812 17.9746 12.0247C17.8186 12.0084 17.6603 12 17.5 12ZM6.5 12C6.33963 12 6.18121 12.0084 6.02475 12.0252C6.00839 12.1812 6 12.3396 6 12.5C6 14.9853 8.01472 17 10.5 17C10.6603 17 10.8186 16.9916 10.9753 16.9746C10.9916 16.8186 11 16.6603 11 16.5C11 14.0147 8.98528 12 6.5 12Z"></path></svg>
+									</div>
+								case gameservice.DrawableTurret:
+									// turrets
+									<div class="tooltip" data-tip={ cell.Tooltip }>
+										<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="h-8 w-8 fill-primary"><path d="M12 13L18 22H6L12 13ZM12 16.6L9.74 20H14.26L12 16.6ZM10.9393 10.5606C10.3536 9.97486 10.3536 9.02511 10.9393 8.43933C11.5251 7.85354 12.4749 7.85354 13.0607 8.43933C13.6464 9.02511 13.6464 9.97486 13.0607 10.5606C12.4749 11.1464 11.5251 11.1464 10.9393 10.5606ZM5.28249 2.78247L6.6967 4.19668C3.76777 7.12562 3.76777 11.8744 6.6967 14.8033L5.28249 16.2175C1.5725 12.5075 1.5725 6.49245 5.28249 2.78247ZM18.7175 2.78247C22.4275 6.49245 22.4275 12.5075 18.7175 16.2175L17.3033 14.8033C20.2322 11.8744 20.2322 7.12562 17.3033 4.19668L18.7175 2.78247ZM8.11091 5.6109L9.52513 7.02511C8.15829 8.39195 8.15829 10.608 9.52513 11.9749L8.11091 13.3891C5.96303 11.2412 5.96303 7.75878 8.11091 5.6109H8.11091ZM15.8891 5.6109C18.037 7.75878 18.037 11.2412 15.8891 13.3891L14.4749 11.9749C15.8417 10.608 15.8417 8.39195 14.4749 7.02511L15.8891 5.6109Z"></path></svg>
+									</div>
+								default:
+									{ " " }
+							}
+						</div>
+					}
+				</div>
+			}
 		</div>
 	</div>
 }

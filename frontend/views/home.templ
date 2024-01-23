@@ -1,6 +1,10 @@
 package views
 
+import "github.com/jenspederm/templweaver/frontend/layouts"
+
 templ Home(user string) {
-	<h1>Home</h1>
-	<p>Welcome { user }</p>
+	@layouts.Base("Home") {
+		<h1>Home</h1>
+		<p>Welcome { user }</p>
+	}
 }
