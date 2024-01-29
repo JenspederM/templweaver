@@ -6,6 +6,15 @@ import (
 	"github.com/ServiceWeaver/weaver"
 )
 
+type Direction int
+
+const (
+	Up Direction = iota
+	Down
+	Left
+	Right
+)
+
 type Monster struct {
 	weaver.AutoMarshal
 	Position Point
@@ -25,4 +34,17 @@ func (m *Monster) IsDead() bool {
 		return true
 	}
 	return m.Health <= 0 || m.Position.X == -1 || m.Position.Y == -1
+}
+
+func (m *Monster) Move(direction Direction) {
+	switch direction {
+	case Up:
+		m.Position.Y--
+	case Down:
+		m.Position.Y++
+	case Left:
+		m.Position.X--
+	case Right:
+		m.Position.X++
+	}
 }

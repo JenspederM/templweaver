@@ -37,8 +37,8 @@ func NewGameState(board []string, turrets []*Turret, monsters []*Monster) *GameS
 	}
 }
 
-func (b *GameState) Update(_ context.Context, original []string, path []Point, reverse bool) (*GameState, error) {
-	slog.Debug("Updating state", "cursor", b.Round, "reverse", reverse)
+func (b *GameState) Update(_ context.Context, original []string, path []Point, directions []Direction) (*GameState, error) {
+	slog.Debug("Updating state", "cursor", b.Round)
 	newMonsters := []*Monster{}
 	for _, monster := range b.Monsters {
 		m := NewMonster(monster.Health)
@@ -76,17 +76,26 @@ func (b *GameState) Update(_ context.Context, original []string, path []Point, r
 		}
 	}
 
-	s.moveCursor(reverse, len(path)+len(b.Monsters))
+	s.moveCursor(len(path) + len(b.Monsters))
+	n := len(b.Monsters)
+	quo, rem := s.Round/n, s.Round%n
+	waveTail := Max(0, (quo-1))*n + rem
+	if quo == 0 {
+		waveTail = -1
+	}
 
-	quo, rem := s.Round/len(path), s.Round%len(path)
-	slog.Debug("Calculating offsets", "quotient", quo, "remainder", rem)
+	slog.Info("Calculating offsets", "quotient", quo, "remainder", rem, "waveTail", waveTail, "len(path)", len(path), "len(b.Monsters)", len(b.Monsters))
 
 	moved, err := s.moveMonster(context.Background(), s.Round, path)
 	if err != nil {
 		return nil, err
 	}
 
-	err = s.shootTurrets(context.Background(), moved)
+	for _, turret := range b.Turrets {
+		turret.Reload()
+	}
+
+	err = s.shootTurrets(context.Background())
 	if err != nil {
 		return nil, err
 	}
@@ -119,10 +128,7 @@ func (b *GameState) moveMonster(_ context.Context, cursor int, path []Point) ([]
 	return moved, nil
 }
 
-func (b *GameState) shootTurrets(_ context.Context, monsters []Monster) error {
-	for _, turret := range b.Turrets {
-		turret.Reload()
-	}
+func (b *GameState) shootTurrets(_ context.Context) error {
 	turretsOutOfAmmo := []string{}
 	for len(turretsOutOfAmmo) != len(b.Turrets) {
 		for _, turret := range b.Turrets {
@@ -160,18 +166,11 @@ func (b *GameState) shootTurrets(_ context.Context, monsters []Monster) error {
 	return nil
 }
 
-func (b *GameState) moveCursor(reverse bool, maxRounds int) {
+func (b *GameState) moveCursor(maxRounds int) {
 	before := b.Round
-	if reverse {
-		b.Round--
-		if b.Round < 0 {
-			b.Round = 0
-		}
-	} else {
-		b.Round++
-		if b.Round >= maxRounds {
-			b.Round = maxRounds
-		}
+	b.Round++
+	if b.Round >= maxRounds {
+		b.Round = maxRounds
 	}
-	slog.Debug("Moving cursor", "before", before, "after", b.Round, "reverse", reverse, "maxRounds", maxRounds)
+	slog.Debug("Moving cursor", "before", before, "after", b.Round, "maxRounds", maxRounds)
 }

@@ -19,11 +19,11 @@ templ Base(title string, routes ...map[string]Route) {
 		</head>
 		<body>
 			<div class="absolute inset-0 flex flex-col w-full bg-base-200 items-center">
-				<div class="flex flex-col flex-grow bg-base-100 sm:w-3/4 md:w-2/3 lg:1/2">
+				<div class="flex flex-col flex-grow bg-base-100 w-full sm:w-3/4 md:w-2/3 lg:1/2">
 					if len(routes) > 0 {
 						@navbar(routes[0])
 					} else {
-						@navbar(map[string]Route{"/":{Titel: "Home"}})
+						@navbar(map[string]Route{"/":{Titel: "Home"},"/board":{Titel: "Tower Defense"}})
 					}
 					<div id="contents" class="flex flex-col flex-grow px-7">
 						{ children... }
@@ -36,7 +36,7 @@ templ Base(title string, routes ...map[string]Route) {
 }
 
 templ contentsSwap(link string, title string, class string) {
-	<button class={ class } hx-get={ link } hx-push-url={ link } hx-target="#contents" hx-swap="innerHTML">{ title }</button>
+	<button class={ class } hx-get={ link } hx-select="#contents" hx-push-url={ link } hx-target="#contents" hx-swap="outerHTML">{ title }</button>
 }
 
 templ navbar(routes map[string]Route) {

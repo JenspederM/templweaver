@@ -3,7 +3,6 @@ package gameservice
 import (
 	"context"
 	"fmt"
-	"log/slog"
 
 	"github.com/ServiceWeaver/weaver"
 )
@@ -35,18 +34,19 @@ type Game struct {
 }
 
 type GameService interface {
-	Draw(ctx context.Context, move bool, reverse bool, cellSize ...int) (*GameState, [][]Drawable, error)
+	Draw(ctx context.Context, move bool, reverse bool) (*GameState, [][]Drawable, error)
 }
 
 type gameServiceImpl struct {
 	weaver.Implements[GameService]
-	state     *GameState
-	states    []*GameState
-	original  []string
-	maxRounds int
-	Path      []Point
-	Start     Point
-	Final     Point
+	state      *GameState
+	states     []GameState
+	original   []string
+	maxRounds  int
+	Path       []Point
+	Directions []Direction
+	Start      Point
+	Final      Point
 }
 
 func (b *gameServiceImpl) Init(ctx context.Context) error {
@@ -95,8 +95,8 @@ func (b *gameServiceImpl) Init(ctx context.Context) error {
 		wave: []int{36, 33, 46, 35, 44, 27, 25, 48, 39, 0, 39, 36, 55, 22, 26},
 	}
 
-	game := g1
-	slog.Debug("Game board", g2)
+	games := []Game{g1, g2}
+	game := games[0]
 	monsters := []*Monster{}
 	for _, health := range game.wave {
 		monsters = append(monsters, NewMonster(health))
@@ -104,7 +104,7 @@ func (b *gameServiceImpl) Init(ctx context.Context) error {
 
 	// original is used to draw the board
 	b.original = game.board
-	start, path, turrets, err := b.findElements(ctx, game.turrets)
+	start, path, directions, turrets, err := b.findElements(ctx, game.turrets)
 	if err != nil {
 		return err
 	}
@@ -113,14 +113,15 @@ func (b *gameServiceImpl) Init(ctx context.Context) error {
 	b.maxRounds = len(path) + len(monsters) - 1
 	b.Start = start
 	b.Final = path[len(path)-1]
-	b.Path = path
+	b.Path = copyAndReverse(path) // We want to start from the end
+	b.Directions = copyAndReverse(directions)
 	b.state = s
-	b.states = []*GameState{s}
+	b.states = []GameState{*s}
 
 	return nil
 }
 
-func (b *gameServiceImpl) Draw(ctx context.Context, move bool, reverse bool, cellSize ...int) (*GameState, [][]Drawable, error) {
+func (b *gameServiceImpl) Draw(ctx context.Context, move bool, reverse bool) (*GameState, [][]Drawable, error) {
 	if move {
 		err := b.updateState(ctx, reverse)
 		if err != nil {
@@ -133,11 +134,8 @@ func (b *gameServiceImpl) Draw(ctx context.Context, move bool, reverse bool, cel
 		return nil, nil, err
 	}
 
-	b.Logger(ctx).Info("Drawing state", "cursor", b.state.Round, "monsters", b.state.Monsters)
+	b.Logger(ctx).Info("Drawing state", "cursor", b.state.Round)
 	sizeClass := "w-8 h-8"
-	if len(cellSize) > 0 {
-		sizeClass = fmt.Sprintf("w-%d h-%d", cellSize[0], cellSize[0])
-	}
 	drawables := make([][]Drawable, len(b.state.Current))
 	for i, row := range b.state.Current {
 		drawables[i] = make([]Drawable, len(row))
@@ -176,20 +174,35 @@ func (b *gameServiceImpl) Draw(ctx context.Context, move bool, reverse bool, cel
 }
 
 func (b *gameServiceImpl) updateState(ctx context.Context, reverse bool) error {
+	currentRound := b.state.Round
+
+	b.Logger(ctx).Debug("Updating state", "cursor", currentRound, "monsters", b.state.Monsters, "reverse", reverse)
+
 	if reverse {
 		if b.state.Round == 0 {
 			return nil
 		}
-		b.state = b.states[b.state.Round-1]
-		return nil
+
+		for _, state := range b.states {
+			if state.Round == b.state.Round-1 {
+				b.state = &state
+				b.Logger(ctx).Debug("Updated state", "cursor", b.state.Round, "monsters", b.state.Monsters)
+				return nil
+			}
+		}
+
+		if b.state.Round == currentRound {
+			return fmt.Errorf("cannot find state for round %d", b.state.Round-1)
+		}
 	}
-	newState, err := b.state.Update(ctx, b.original, copyAndReverse(b.Path), reverse)
+
+	newState, err := b.state.Update(ctx, b.original, b.Path, b.Directions)
 	if err != nil {
 		return err
 	}
-	b.states = append(b.states, newState)
+	b.states = append(b.states, *newState)
 	b.state = newState
-	b.Logger(ctx).Info("Updated state", "cursor", b.state.Round, "monsters", b.state.Monsters)
+	b.Logger(ctx).Debug("Updated state", "cursor", b.state.Round, "monsters", b.state.Monsters)
 	return nil
 }
 
@@ -234,7 +247,7 @@ func (b *gameServiceImpl) getFromOriginal(_ context.Context, x int, y int) (stri
 	return string(b.original[y][x]), nil
 }
 
-func (b *gameServiceImpl) findElements(ctx context.Context, turretMap map[string][2]int) (Point, []Point, []*Turret, error) {
+func (b *gameServiceImpl) findElements(ctx context.Context, turretMap map[string][2]int) (Point, []Point, []Direction, []*Turret, error) {
 	start := Point{}
 	turrets := []*Turret{}
 	unsorted_path := []Point{}
@@ -244,7 +257,7 @@ func (b *gameServiceImpl) findElements(ctx context.Context, turretMap map[string
 		for x := 0; x < cols; x++ {
 			val, err := b.getFromOriginal(ctx, x, y)
 			if err != nil {
-				return Point{}, nil, nil, err
+				return Point{}, nil, nil, nil, err
 			}
 			if val == " " {
 				continue
@@ -258,10 +271,10 @@ func (b *gameServiceImpl) findElements(ctx context.Context, turretMap map[string
 			default: // turret
 				stats, ok := turretMap[val]
 				if !ok {
-					return Point{}, nil, nil, fmt.Errorf("turret %s not found", val)
+					return Point{}, nil, nil, nil, fmt.Errorf("turret %s not found", val)
 				}
 				if len(stats) != 2 {
-					return Point{}, nil, nil, fmt.Errorf("turret %s has invalid stats", val)
+					return Point{}, nil, nil, nil, fmt.Errorf("turret %s has invalid stats", val)
 				}
 				turrets = append(turrets, NewTurret(NewPoint(x, y), val, stats[0], stats[1]))
 			}
@@ -269,49 +282,54 @@ func (b *gameServiceImpl) findElements(ctx context.Context, turretMap map[string
 		}
 	}
 
-	path, err := b.sortPath(ctx, unsorted_path, start)
+	path, directions, err := b.sortPath(ctx, unsorted_path, start)
 	if err != nil {
-		return Point{}, nil, nil, err
+		return Point{}, nil, nil, nil, err
 	}
 
-	return start, path, turrets, nil
+	return start, path, directions, turrets, nil
 }
 
-func (b *gameServiceImpl) sortPath(ctx context.Context, unsorted_path []Point, start Point) ([]Point, error) {
+func (b *gameServiceImpl) sortPath(ctx context.Context, unsorted_path []Point, start Point) ([]Point, []Direction, error) {
 	pos := start
 	dir := ""
 	path := []Point{start}
+	directions := []Direction{}
 	for len(path) <= len(unsorted_path) {
 		left, err := b.getFromOriginal(ctx, pos.X-1, pos.Y)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		right, err := b.getFromOriginal(ctx, pos.X+1, pos.Y)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		up, err := b.getFromOriginal(ctx, pos.X, pos.Y-1)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		down, err := b.getFromOriginal(ctx, pos.X, pos.Y+1)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		if left == "1" && dir != "right" {
 			dir = "left"
+			directions = append(directions, Left)
 			pos.X--
 		} else if right == "1" && dir != "left" {
 			dir = "right"
+			directions = append(directions, Right)
 			pos.X++
 		} else if up == "1" && dir != "down" {
 			dir = "up"
+			directions = append(directions, Up)
 			pos.Y--
 		} else if down == "1" && dir != "up" {
 			dir = "down"
+			directions = append(directions, Down)
 			pos.Y++
 		}
 		path = append(path, NewPoint(pos.X, pos.Y))
 	}
-	return path, nil
+	return path, directions, nil
 }
