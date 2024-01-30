@@ -3,13 +3,9 @@ package server
 import (
 	"net/http"
 
-	"github.com/jenspederm/templweaver/gameservice"
-	"github.com/jenspederm/templweaver/layouts"
-	"github.com/jenspederm/templweaver/views"
+	"github.com/jenspederm/templweaver/server/internal/layout"
+	"github.com/jenspederm/templweaver/server/internal/view"
 )
-
-type GlobalState struct {
-}
 
 func sessionID(r *http.Request) string {
 	v := r.Context().Value(ctxKeySessionID{})
@@ -21,36 +17,34 @@ func sessionID(r *http.Request) string {
 
 func (s *Server) homeHandler(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path != "/" {
-		layouts.Error(404, "Not found").Render(r.Context(), w)
+		layout.Error(404, "Not found").Render(r.Context(), w)
 		return
 	}
-	views.Home(sessionID(r)).Render(r.Context(), w)
+	view.Home(sessionID(r), Routes).Render(r.Context(), w)
 }
-func (s *Server) page1Handler(w http.ResponseWriter, r *http.Request) {
-	views.Page1().Render(r.Context(), w)
-}
+
 func (s *Server) boardHandler(w http.ResponseWriter, r *http.Request) {
-	service := s.gameservice.Get()
+	service := s.towerdefenseservice.Get()
 
 	if r.Method == http.MethodPost {
 		reverse := r.FormValue("method") == "previous"
 		state, drawables, err := service.Draw(r.Context(), true, reverse)
 		s.Logger(r.Context()).Info("boardHandler", "survivors", state.Survivors, "round", state.Round, "reverse", reverse)
 		if err != nil {
-			layouts.Error(500, err.Error()).Render(r.Context(), w)
+			layout.Error(500, err.Error()).Render(r.Context(), w)
 			return
 		}
-		gameservice.HtmxBoard("board", state, drawables).Render(r.Context(), w)
+		view.HtmxBoard("board", state, drawables).Render(r.Context(), w)
 		return
 	}
 
 	state, drawables, err := service.Draw(r.Context(), false, false)
 	if err != nil {
-		layouts.Error(500, err.Error()).Render(r.Context(), w)
+		layout.Error(500, err.Error()).Render(r.Context(), w)
 		return
 	}
 
-	gameservice.Board(state, drawables).Render(r.Context(), w)
+	view.Board(state, drawables, Routes).Render(r.Context(), w)
 }
 func (s *Server) loginHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodPost {

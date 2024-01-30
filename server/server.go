@@ -10,8 +10,8 @@ import (
 
 	"github.com/ServiceWeaver/weaver"
 	"github.com/jenspederm/templweaver/authservice"
-	"github.com/jenspederm/templweaver/gameservice"
-	"github.com/jenspederm/templweaver/layouts"
+	"github.com/jenspederm/templweaver/server/internal/layout"
+	"github.com/jenspederm/templweaver/towerdefenseservice"
 	"github.com/joho/godotenv"
 )
 
@@ -36,8 +36,8 @@ type Server struct {
 	hostname string
 
 	// Setup the services we need.
-	authservice weaver.Ref[authservice.AuthService]
-	gameservice weaver.Ref[gameservice.GameService]
+	authservice         weaver.Ref[authservice.AuthService]
+	towerdefenseservice weaver.Ref[towerdefenseservice.GameService]
 
 	// Setup the listeners we need.
 	frontend weaver.Listener
@@ -72,7 +72,7 @@ func Serve(ctx context.Context, s *Server) error {
 		}
 		handler := func(w http.ResponseWriter, r *http.Request) {
 			if _, ok := allowed[r.Method]; len(allowed) > 0 && !ok {
-				layouts.Error(r.Response.StatusCode, fmt.Sprintf("method %q not allowed", r.Method)).Render(r.Context(), w)
+				layout.Error(r.Response.StatusCode, fmt.Sprintf("method %q not allowed", r.Method)).Render(r.Context(), w)
 				msg := fmt.Sprintf("method %q not allowed", r.Method)
 				http.Error(w, msg, http.StatusMethodNotAllowed)
 				return
@@ -87,7 +87,6 @@ func Serve(ctx context.Context, s *Server) error {
 	const head = http.MethodHead
 	r.Handle("/", instrument("home", s.homeHandler, []string{get, head}))
 	r.Handle("/login", instrument("login", s.loginHandler, []string{post}))
-	r.Handle("/page1", instrument("page1", s.page1Handler, []string{get, head}))
 	r.Handle("/board", instrument("board", s.boardHandler, []string{get, head, post}))
 	r.Handle("/ping", instrument("ping", func(w http.ResponseWriter, _ *http.Request) { fmt.Fprint(w, "pong") }, []string{post}))
 	r.Handle("/static/", weaver.InstrumentHandler("static", http.StripPrefix("/static/", http.FileServer(http.FS(staticHTML)))))

@@ -1,4 +1,4 @@
-package gameservice
+package towerdefenseservice
 
 import (
 	"fmt"

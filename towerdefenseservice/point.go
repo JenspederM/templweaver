@@ -1,4 +1,4 @@
-package gameservice
+package towerdefenseservice
 
 import "github.com/ServiceWeaver/weaver"
 
