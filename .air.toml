@@ -1,18 +1,13 @@
 root = "."
 testdata_dir = "testdata"
-tmp_dir = "tmp"
+tmp_dir = ".tmp"
 
 [build]
 args_bin = []
-pre_cmd = [
-    "npx tailwindcss -i ./frontend/main.css -o ./frontend/static/tailwind.css",
-    "templ generate ./...",
-    "weaver generate ./...",
-]
 full_bin = "weaver single deploy weaver.toml"
-cmd = "go build -o ./bin/templweaver ./main.go"
+cmd = "make build"
 delay = 1000
-exclude_dir = ["assets", "tmp", "vendor", "testdata", "node_modules"]
+exclude_dir = ["assets", "bin", ".tmp", "vendor", "testdata", "node_modules"]
 exclude_file = []
 exclude_regex = ["_test.go", "_templ.go", "weaver_gen.go"]
 exclude_unchanged = false

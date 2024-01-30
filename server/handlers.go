@@ -1,11 +1,11 @@
-package frontend
+package server
 
 import (
 	"net/http"
 
-	"github.com/jenspederm/templweaver/frontend/views"
 	"github.com/jenspederm/templweaver/gameservice"
 	"github.com/jenspederm/templweaver/layouts"
+	"github.com/jenspederm/templweaver/views"
 )
 
 type GlobalState struct {
