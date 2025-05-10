@@ -4,7 +4,7 @@ go 1.21.5
 
 require (
 	github.com/ServiceWeaver/weaver v0.22.0
-	github.com/a-h/templ v0.2.513
+	github.com/a-h/templ v0.2.543
 	github.com/google/uuid v1.3.1
 	github.com/joho/godotenv v1.5.1
 	go.opentelemetry.io/otel v1.16.0

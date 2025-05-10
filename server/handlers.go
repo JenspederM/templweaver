@@ -3,8 +3,8 @@ package server
 import (
 	"net/http"
 
-	"github.com/jenspederm/templweaver/server/internal/layout"
-	"github.com/jenspederm/templweaver/server/internal/view"
+	"github.com/jenspederm/templweaver/layout"
+	"github.com/jenspederm/templweaver/views"
 )
 
 func sessionID(r *http.Request) string {
@@ -20,7 +20,7 @@ func (s *Server) homeHandler(w http.ResponseWriter, r *http.Request) {
 		layout.Error(404, "Not found").Render(r.Context(), w)
 		return
 	}
-	view.Home(sessionID(r), Routes).Render(r.Context(), w)
+	views.Home(sessionID(r), s.routes).Render(r.Context(), w)
 }
 
 func (s *Server) boardHandler(w http.ResponseWriter, r *http.Request) {
@@ -34,7 +34,7 @@ func (s *Server) boardHandler(w http.ResponseWriter, r *http.Request) {
 			layout.Error(500, err.Error()).Render(r.Context(), w)
 			return
 		}
-		view.HtmxBoard("board", state, drawables).Render(r.Context(), w)
+		views.HtmxBoard("board", state, drawables).Render(r.Context(), w)
 		return
 	}
 
@@ -44,7 +44,7 @@ func (s *Server) boardHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	view.Board(state, drawables, Routes).Render(r.Context(), w)
+	views.Board(state, drawables, s.routes).Render(r.Context(), w)
 }
 func (s *Server) loginHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodPost {

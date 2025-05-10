@@ -9,9 +9,9 @@ import (
 	"os"
 
 	"github.com/ServiceWeaver/weaver"
-	"github.com/jenspederm/templweaver/authservice"
-	"github.com/jenspederm/templweaver/server/internal/layout"
-	"github.com/jenspederm/templweaver/towerdefenseservice"
+	"github.com/jenspederm/templweaver/models"
+	"github.com/jenspederm/templweaver/services/authservice"
+	"github.com/jenspederm/templweaver/services/towerdefenseservice"
 	"github.com/joho/godotenv"
 )
 
@@ -34,6 +34,7 @@ type Server struct {
 
 	handler  http.Handler
 	hostname string
+	routes   models.Routes
 
 	// Setup the services we need.
 	authservice         weaver.Ref[authservice.AuthService]
@@ -62,37 +63,53 @@ func Serve(ctx context.Context, s *Server) error {
 	if err != nil {
 		return err
 	}
+
 	r := http.NewServeMux()
-
-	// Helper that adds a handler with HTTP metric instrumentation.
-	instrument := func(label string, fn func(http.ResponseWriter, *http.Request), methods []string) http.Handler {
-		allowed := map[string]struct{}{}
-		for _, method := range methods {
-			allowed[method] = struct{}{}
-		}
-		handler := func(w http.ResponseWriter, r *http.Request) {
-			if _, ok := allowed[r.Method]; len(allowed) > 0 && !ok {
-				layout.Error(r.Response.StatusCode, fmt.Sprintf("method %q not allowed", r.Method)).Render(r.Context(), w)
-				msg := fmt.Sprintf("method %q not allowed", r.Method)
-				http.Error(w, msg, http.StatusMethodNotAllowed)
-				return
-			}
-			fn(w, r)
-		}
-		return weaver.InstrumentHandlerFunc(label, handler)
-	}
-
 	const get = http.MethodGet
 	const post = http.MethodPost
 	const head = http.MethodHead
-	r.Handle("/", instrument("home", s.homeHandler, []string{get, head}))
-	r.Handle("/login", instrument("login", s.loginHandler, []string{post}))
-	r.Handle("/board", instrument("board", s.boardHandler, []string{get, head, post}))
-	r.Handle("/ping", instrument("ping", func(w http.ResponseWriter, _ *http.Request) { fmt.Fprint(w, "pong") }, []string{post}))
-	r.Handle("/static/", weaver.InstrumentHandler("static", http.StripPrefix("/static/", http.FileServer(http.FS(staticHTML)))))
-	r.Handle("/robots.txt", instrument("robots", func(w http.ResponseWriter, _ *http.Request) { fmt.Fprint(w, "User-agent: *\nDisallow: /") }, nil))
-	r.HandleFunc(weaver.HealthzURL, weaver.HealthzHandler)
 
+	s.routes = models.Routes{
+		"/": {
+			ApiOnly:        false,
+			Titel:          "Home",
+			Handler:        s.homeHandler,
+			AllowedMethods: []string{get, head},
+		},
+		"/towerdefense": {
+			ApiOnly:        false,
+			Titel:          "Tower Defense",
+			Handler:        s.boardHandler,
+			AllowedMethods: []string{get, head, post},
+		},
+		"/ping": {
+			ApiOnly:        true,
+			Handler:        func(w http.ResponseWriter, _ *http.Request) { fmt.Fprint(w, "pong") },
+			AllowedMethods: []string{post},
+		},
+		"/login": {
+			ApiOnly:        true,
+			Handler:        s.loginHandler,
+			AllowedMethods: []string{post},
+		},
+		"/robots.txt": {
+			ApiOnly:        true,
+			Handler:        func(w http.ResponseWriter, _ *http.Request) { fmt.Fprint(w, "User-agent: *\nDisallow: /") },
+			AllowedMethods: []string{get, head},
+		},
+		"/static/": {
+			ApiOnly:        true,
+			Handler:        http.StripPrefix("/static/", http.FileServer(http.FS(staticHTML))).ServeHTTP,
+			AllowedMethods: []string{get, head},
+		},
+		weaver.HealthzURL: {
+			ApiOnly:        true,
+			Handler:        weaver.HealthzHandler,
+			AllowedMethods: []string{get, head, post},
+		},
+	}
+
+	s.routes.Bind(r)
 	var handler http.Handler = r
 	handler = ensureSessionID(handler)              // add session ID
 	handler = newLogHandler(s.Logger(ctx), handler) // add logging

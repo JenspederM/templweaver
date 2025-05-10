@@ -1,0 +1,11 @@
+package views
+
+import "github.com/jenspederm/templweaver/layout"
+import "github.com/jenspederm/templweaver/models"
+
+templ Home(user string, routes ...models.Routes) {
+	@layout.Base("Home", routes...) {
+		<h1>Home</h1>
+		<p>Welcome { user }</p>
+	}
+}
